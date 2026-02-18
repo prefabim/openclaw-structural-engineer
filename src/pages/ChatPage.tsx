@@ -11,6 +11,7 @@ import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import { MNDiagramChart, parseMNMarker } from "@/components/MNDiagramChart";
+import { RebarDrawingChart, parseRebarMarker } from "@/components/RebarDrawing";
 import { useNavigate } from "react-router-dom";
 import { APP_NAME } from "@/lib/constants";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -32,16 +33,21 @@ function getSessionId(): string {
  * Splits on [MN_DIAGRAM:...] markers and renders chart components.
  */
 function RenderContentWithDiagrams({ content }: { content: string }) {
-  const mnRegex = /\[MN_DIAGRAM:[^\]]+\]/g;
-  const parts: Array<{ type: "text"; content: string } | { type: "diagram"; marker: string }> = [];
+  // Match both MN_DIAGRAM and REBAR_DRAWING markers
+  const markerRegex = /\[(MN_DIAGRAM|REBAR_DRAWING):[^\]]+\]/g;
+  const parts: Array<{ type: "text"; content: string } | { type: "mn"; marker: string } | { type: "rebar"; marker: string }> = [];
 
   let lastIndex = 0;
   let match: RegExpExecArray | null;
-  while ((match = mnRegex.exec(content)) !== null) {
+  while ((match = markerRegex.exec(content)) !== null) {
     if (match.index > lastIndex) {
       parts.push({ type: "text", content: content.slice(lastIndex, match.index) });
     }
-    parts.push({ type: "diagram", marker: match[0] });
+    if (match[1] === "MN_DIAGRAM") {
+      parts.push({ type: "mn", marker: match[0] });
+    } else {
+      parts.push({ type: "rebar", marker: match[0] });
+    }
     lastIndex = match.index + match[0].length;
   }
   if (lastIndex < content.length) {
@@ -58,9 +64,17 @@ function RenderContentWithDiagrams({ content }: { content: string }) {
         if (part.type === "text") {
           return <ReactMarkdown key={i} remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{part.content}</ReactMarkdown>;
         }
-        const parsed = parseMNMarker(part.marker);
-        if (!parsed) return null;
-        return <MNDiagramChart key={i} params={parsed.params} designPoint={parsed.designPoint} />;
+        if (part.type === "mn") {
+          const parsed = parseMNMarker(part.marker);
+          if (!parsed) return null;
+          return <MNDiagramChart key={i} params={parsed.params} designPoint={parsed.designPoint} />;
+        }
+        if (part.type === "rebar") {
+          const parsed = parseRebarMarker(part.marker);
+          if (!parsed) return null;
+          return <RebarDrawingChart key={i} params={parsed} />;
+        }
+        return null;
       })}
     </>
   );

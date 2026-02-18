@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { HardHat, ArrowRight, Calculator, Building2, FileText, Columns3, Upload, Database } from "lucide-react";
+import { HardHat, ArrowRight, Calculator, Building2, FileText, Columns3, Upload, Database, Combine } from "lucide-react";
 import { APP_NAME } from "@/lib/constants";
 
 const FEATURES = [
@@ -23,6 +23,26 @@ const FEATURES = [
     icon: FileText,
     title: "Slab Design",
     desc: "One-way & two-way slabs per EC2",
+  },
+  {
+    icon: Database,
+    title: "Steel Profile DB",
+    desc: "IPE/HEB/HEA/UPN catalog with instant lookup",
+  },
+  {
+    icon: Combine,
+    title: "Load Combinations",
+    desc: "EN 1990 ULS & SLS auto-generation",
+  },
+  {
+    icon: Building2,
+    title: "Fire Resistance",
+    desc: "Tabulated method per EC2-1-2",
+  },
+  {
+    icon: Calculator,
+    title: "Cost Estimation",
+    desc: "Material quantities & preliminary costs",
   },
 ];
 
@@ -59,6 +79,14 @@ export function LandingPage() {
               onClick={() => navigate("/profiles")}
             >
               <Database className="w-4 h-4" /> Steel Profiles
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="gap-2 text-base px-8 h-12 rounded-xl"
+              onClick={() => navigate("/loads")}
+            >
+              <Combine className="w-4 h-4" /> Load Combinations
             </Button>
             <Button
               size="lg"

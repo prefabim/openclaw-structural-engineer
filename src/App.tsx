@@ -9,6 +9,7 @@ import { Loader2 } from "lucide-react";
 
 const IfcPage = lazy(() => import("./pages/IfcPage").then((m) => ({ default: m.IfcPage })));
 const ProfilesPage = lazy(() => import("./pages/ProfilesPage").then((m) => ({ default: m.ProfilesPage })));
+const LoadCombinationsPage = lazy(() => import("./pages/LoadCombinationsPage").then((m) => ({ default: m.LoadCombinationsPage })));
 
 function LoadingFallback() {
   return (
@@ -41,6 +42,14 @@ function App() {
             element={
               <Suspense fallback={<LoadingFallback />}>
                 <ProfilesPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/loads"
+            element={
+              <Suspense fallback={<LoadingFallback />}>
+                <LoadCombinationsPage />
               </Suspense>
             }
           />
