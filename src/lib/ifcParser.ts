@@ -67,7 +67,8 @@ export async function parseIfcFile(
   const WebIFC = await loadWebIFC();
 
   const ifcApi = new WebIFC.IfcAPI();
-  ifcApi.SetWasmPath("https://cdn.jsdelivr.net/npm/web-ifc@0.0.75/");
+  // WASM files served from /public/wasm/ (more reliable than CDN)
+  ifcApi.SetWasmPath("/wasm/");
   await ifcApi.Init();
 
   const modelId = ifcApi.OpenModel(fileBuffer);
