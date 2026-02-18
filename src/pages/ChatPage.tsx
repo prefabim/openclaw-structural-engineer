@@ -187,7 +187,7 @@ export function ChatPage() {
   }
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="fixed inset-0 flex bg-background">
       {/* Sidebar */}
       {showSidebar && (
         <div className={`${isMobile ? "absolute inset-0 z-50 bg-background" : "w-72 border-r"} flex flex-col`}>
