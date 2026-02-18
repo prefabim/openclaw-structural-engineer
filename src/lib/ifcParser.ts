@@ -1,4 +1,4 @@
-// IFC Parser - loads web-ifc entirely from CDN to avoid bundling 3.5MB
+// IFC Parser - loads web-ifc dynamically to avoid bundling ~3.5MB
 
 export interface IfcStructuralElement {
   expressId: number;
@@ -36,29 +36,39 @@ function getPropertyValue(prop: any): string {
   return "";
 }
 
-// Load web-ifc from CDN dynamically
+// Dynamic import from ESM CDN
 let webIfcPromise: Promise<any> | null = null;
 
 function loadWebIFC(): Promise<any> {
   if (webIfcPromise) return webIfcPromise;
-
-  webIfcPromise = new Promise((resolve, reject) => {
-    const script = document.createElement("script");
-    script.src = "https://cdn.jsdelivr.net/npm/web-ifc@0.0.75/web-ifc-api-iife.js";
-    script.onload = () => {
-      const WebIFC = (window as any).WebIFC;
-      if (WebIFC) {
-        resolve(WebIFC);
-      } else {
-        reject(new Error("web-ifc failed to load"));
-      }
-    };
-    script.onerror = () => reject(new Error("Failed to load web-ifc from CDN"));
-    document.head.appendChild(script);
-  });
-
+  const cdnUrl = "https://cdn.jsdelivr.net/npm/web-ifc@0.0.75/web-ifc-api.js";
+  // @ts-ignore - dynamic CDN import
+  webIfcPromise = import(/* @vite-ignore */ cdnUrl);
   return webIfcPromise;
 }
+
+// IFC type constants (hardcoded to avoid importing the full schema)
+const IFCBEAM = 753842376;
+const IFCBEAMSTANDARDCASE = 2906023776;
+const IFCCOLUMN = 843113511;
+const IFCCOLUMNSTANDARDCASE = 905975707;
+const IFCSLAB = 1529196076;
+const IFCSLABSTANDARDCASE = 3027962421;
+const IFCWALL = 2391406946;
+const IFCWALLSTANDARDCASE = 3512223829;
+const IFCRELASSOCIATESMATERIAL = 2655215786;
+const IFCRELDEFINESBYPROPERTIES = 4186316022;
+
+const STRUCTURAL_TYPES: Record<number, IfcStructuralElement["type"]> = {
+  [IFCBEAM]: "beam",
+  [IFCBEAMSTANDARDCASE]: "beam",
+  [IFCCOLUMN]: "column",
+  [IFCCOLUMNSTANDARDCASE]: "column",
+  [IFCSLAB]: "slab",
+  [IFCSLABSTANDARDCASE]: "slab",
+  [IFCWALL]: "wall",
+  [IFCWALLSTANDARDCASE]: "wall",
+};
 
 export async function parseIfcFile(
   fileBuffer: Uint8Array,
@@ -67,34 +77,13 @@ export async function parseIfcFile(
   const WebIFC = await loadWebIFC();
 
   const ifcApi = new WebIFC.IfcAPI();
-  // WASM files served from /public/wasm/ (more reliable than CDN)
-  ifcApi.SetWasmPath("/wasm/");
+
+  // Use CDN for WASM too (most reliable, avoids cross-origin issues)
+  ifcApi.SetWasmPath("https://cdn.jsdelivr.net/npm/web-ifc@0.0.75/");
+
   await ifcApi.Init();
 
   const modelId = ifcApi.OpenModel(fileBuffer);
-
-  // IFC type constants
-  const IFCBEAM = 753842376;
-  const IFCBEAMSTANDARDCASE = 2906023776;
-  const IFCCOLUMN = 843113511;
-  const IFCCOLUMNSTANDARDCASE = 905975707;
-  const IFCSLAB = 1529196076;
-  const IFCSLABSTANDARDCASE = 3027962421;
-  const IFCWALL = 2391406946;
-  const IFCWALLSTANDARDCASE = 3512223829;
-  const IFCRELASSOCIATESMATERIAL = 2655215786;
-  const IFCRELDEFINESBYPROPERTIES = 4186316022;
-
-  const STRUCTURAL_TYPES: Record<number, IfcStructuralElement["type"]> = {
-    [IFCBEAM]: "beam",
-    [IFCBEAMSTANDARDCASE]: "beam",
-    [IFCCOLUMN]: "column",
-    [IFCCOLUMNSTANDARDCASE]: "column",
-    [IFCSLAB]: "slab",
-    [IFCSLABSTANDARDCASE]: "slab",
-    [IFCWALL]: "wall",
-    [IFCWALLSTANDARDCASE]: "wall",
-  };
 
   const elements: IfcStructuralElement[] = [];
 

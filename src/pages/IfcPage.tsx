@@ -132,7 +132,13 @@ export function IfcPage() {
       const parsed = await parseIfcFile(new Uint8Array(buffer), file.name);
       setResult(parsed);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to parse IFC file");
+      console.error("IFC parse error:", err);
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("wasm") || msg.includes("Aborted")) {
+        setError("WASM engine failed to load. Please try again or use a different browser (Chrome/Edge recommended).");
+      } else {
+        setError(`Failed to parse IFC: ${msg}`);
+      }
     } finally {
       setParsing(false);
     }

@@ -3,283 +3,196 @@ import katex from "katex";
 
 interface PdfOptions {
   title?: string;
-  project?: string;
-  author?: string;
   content: string;
 }
 
 /**
- * Render LaTeX math in a string to KaTeX HTML spans.
- * Handles both display $$...$$ and inline $...$ math.
+ * Render LaTeX math to KaTeX HTML.
  */
-function renderMathInText(text: string): string {
+function renderMath(text: string): string {
   // Display math $$...$$
-  let result = text.replace(/\$\$([\s\S]*?)\$\$/g, (_match, latex: string) => {
+  let result = text.replace(/\$\$([\s\S]*?)\$\$/g, (_m, latex: string) => {
     try {
-      return `<div class="math-display">${katex.renderToString(latex.trim(), { displayMode: true, throwOnError: false })}</div>`;
-    } catch {
-      return latex;
-    }
+      return `<div class="math-block">${katex.renderToString(latex.trim(), { displayMode: true, throwOnError: false })}</div>`;
+    } catch { return latex; }
   });
-
   // Inline math $...$
-  result = result.replace(/\$([^$\n]+?)\$/g, (_match, latex: string) => {
+  result = result.replace(/\$([^$\n]+?)\$/g, (_m, latex: string) => {
     try {
       return katex.renderToString(latex.trim(), { displayMode: false, throwOnError: false });
-    } catch {
-      return latex;
-    }
+    } catch { return latex; }
   });
-
   return result;
 }
 
 /**
- * Convert markdown content to styled HTML for PDF rendering.
+ * Convert markdown to styled HTML document.
  */
-function markdownToHtml(content: string, title: string, dateStr: string): string {
+function toHtml(content: string, title: string, dateStr: string): string {
   const lines = content.split("\n");
   let html = "";
-  let i = 0;
   let inTable = false;
 
-  while (i < lines.length) {
-    const line = lines[i];
-    const trimmed = line.trim();
-
-    if (!trimmed) {
-      if (inTable) {
-        html += "</table>";
-        inTable = false;
-      }
-      i++;
-      continue;
-    }
+  for (let i = 0; i < lines.length; i++) {
+    const t = lines[i].trim();
+    if (!t) { if (inTable) { html += "</table>"; inTable = false; } continue; }
 
     // Display math block
-    if (trimmed.startsWith("$$")) {
-      let mathBlock = trimmed.slice(2);
-      if (mathBlock.endsWith("$$")) {
-        mathBlock = mathBlock.slice(0, -2);
-      } else {
-        i++;
-        while (i < lines.length && !lines[i].trim().endsWith("$$")) {
-          mathBlock += " " + lines[i].trim();
-          i++;
-        }
-        if (i < lines.length) {
-          mathBlock += " " + lines[i].trim().slice(0, -2);
-        }
-      }
-      try {
-        html += `<div class="math-display">${katex.renderToString(mathBlock.trim(), { displayMode: true, throwOnError: false })}</div>`;
-      } catch {
-        html += `<p>${mathBlock}</p>`;
-      }
-      i++;
+    if (t.startsWith("$$")) {
+      let math = t.slice(2);
+      if (math.endsWith("$$")) { math = math.slice(0, -2); }
+      else { i++; while (i < lines.length && !lines[i].trim().endsWith("$$")) { math += " " + lines[i].trim(); i++; } if (i < lines.length) math += " " + lines[i].trim().slice(0, -2); }
+      try { html += `<div class="math-block">${katex.renderToString(math.trim(), { displayMode: true, throwOnError: false })}</div>`; }
+      catch { html += `<p>${math}</p>`; }
       continue;
     }
 
-    // Headers
-    if (trimmed.startsWith("### ")) {
-      html += `<h3>${renderMathInText(trimmed.slice(4))}</h3>`;
-      i++;
-      continue;
-    }
-    if (trimmed.startsWith("## ")) {
-      html += `<h2>${renderMathInText(trimmed.slice(3))}</h2>`;
-      i++;
-      continue;
-    }
-    if (trimmed.startsWith("# ")) {
-      html += `<h1>${renderMathInText(trimmed.slice(2))}</h1>`;
-      i++;
-      continue;
-    }
-
-    // Horizontal rule
-    if (trimmed === "---" || trimmed === "***") {
-      html += "<hr>";
-      i++;
-      continue;
-    }
+    if (t.startsWith("### ")) { html += `<h3>${renderMath(t.slice(4))}</h3>`; continue; }
+    if (t.startsWith("## ")) { html += `<h2>${renderMath(t.slice(3))}</h2>`; continue; }
+    if (t.startsWith("# ")) { html += `<h1>${renderMath(t.slice(2))}</h1>`; continue; }
+    if (t === "---" || t === "***") { html += "<hr>"; continue; }
 
     // Table
-    if (trimmed.startsWith("|") && trimmed.endsWith("|")) {
-      if (!inTable) {
-        html += '<table>';
-        inTable = true;
-      }
-      // Skip separator rows
-      if (/^\|[\s\-:|]+\|$/.test(trimmed)) {
-        i++;
-        continue;
-      }
-      const cells = trimmed.split("|").slice(1, -1).map((c) => renderMathInText(c.trim()));
-      // First row after table start is header
-      const isFirstRow = html.endsWith("<table>");
-      const tag = isFirstRow ? "th" : "td";
-      html += `<tr>${cells.map((c) => `<${tag}>${c}</${tag}>`).join("")}</tr>`;
-      i++;
+    if (t.startsWith("|") && t.endsWith("|")) {
+      if (!inTable) { html += "<table>"; inTable = true; }
+      if (/^\|[\s\-:|]+\|$/.test(t)) continue;
+      const cells = t.split("|").slice(1, -1).map(c => renderMath(c.trim()));
+      const tag = html.endsWith("<table>") ? "th" : "td";
+      html += `<tr>${cells.map(c => `<${tag}>${c}</${tag}>`).join("")}</tr>`;
       continue;
     }
+    if (inTable) { html += "</table>"; inTable = false; }
 
-    if (inTable) {
-      html += "</table>";
-      inTable = false;
-    }
+    // Paragraph with markdown + math
+    let p = t;
+    p = p.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+    p = p.replace(/\*(.*?)\*/g, "<em>$1</em>");
+    p = p.replace(/`(.*?)`/g, "<code>$1</code>");
+    p = renderMath(p);
 
-    // Regular paragraph — process markdown bold/italic/code + math
-    let pText = trimmed;
-    pText = pText.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
-    pText = pText.replace(/\*(.*?)\*/g, "<em>$1</em>");
-    pText = pText.replace(/`(.*?)`/g, '<code>$1</code>');
-    pText = renderMathInText(pText);
-
-    // List items
-    if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
-      html += `<li>${pText.slice(2)}</li>`;
-    } else if (/^\d+\.\s/.test(trimmed)) {
-      html += `<li>${pText.replace(/^\d+\.\s/, "")}</li>`;
-    } else {
-      html += `<p>${pText}</p>`;
-    }
-    i++;
+    if (t.startsWith("- ") || t.startsWith("* ")) html += `<li>${p.slice(2)}</li>`;
+    else if (/^\d+\.\s/.test(t)) html += `<li>${p.replace(/^\d+\.\s/, "")}</li>`;
+    else html += `<p>${p}</p>`;
   }
-
   if (inTable) html += "</table>";
 
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.28/dist/katex.min.css">
+  // Inline KaTeX CSS directly (no external dependencies)
+  const katexCss = getKatexInlineCss();
+
+  return `<!DOCTYPE html><html><head>
 <style>
-  @page { margin: 15mm; }
-  body {
-    font-family: 'Times New Roman', serif;
-    font-size: 10pt;
-    line-height: 1.5;
-    color: #111;
-    max-width: 170mm;
-    margin: 0 auto;
-  }
-  .pdf-header {
-    border-bottom: 2px solid #333;
-    padding-bottom: 6px;
-    margin-bottom: 12px;
-  }
-  .pdf-header h1 {
-    font-size: 14pt;
-    margin: 0 0 2px 0;
-  }
-  .pdf-header .meta {
-    font-size: 8pt;
-    color: #666;
-  }
-  h1 { font-size: 13pt; margin: 14px 0 6px 0; border-bottom: 1px solid #ccc; padding-bottom: 3px; }
-  h2 { font-size: 11pt; margin: 12px 0 5px 0; }
-  h3 { font-size: 10pt; margin: 10px 0 4px 0; }
-  p { margin: 4px 0; }
-  li { margin: 2px 0 2px 16px; }
-  hr { border: none; border-top: 1px solid #ccc; margin: 10px 0; }
-  table {
-    border-collapse: collapse;
-    width: 100%;
-    margin: 8px 0;
-    font-size: 9pt;
-  }
-  th, td {
-    border: 1px solid #ccc;
-    padding: 4px 8px;
-    text-align: left;
-  }
-  th {
-    background: #f0f0f0;
-    font-weight: bold;
-  }
-  code {
-    background: #f5f5f5;
-    padding: 1px 4px;
-    border-radius: 3px;
-    font-size: 9pt;
-  }
-  strong { font-weight: bold; }
-  .math-display {
-    text-align: center;
-    margin: 8px 0;
-  }
-  .katex { font-size: 1.05em; }
-  .pdf-footer {
-    margin-top: 20px;
-    padding-top: 6px;
-    border-top: 1px solid #ccc;
-    font-size: 7pt;
-    color: #999;
-    text-align: center;
-    font-style: italic;
-  }
-</style>
-</head>
-<body>
-  <div class="pdf-header">
-    <h1>CALCULATION NOTE: ${title}</h1>
-    <div class="meta">${dateStr} | Structural Engineer AI | For preliminary design only</div>
-  </div>
-  ${html}
-  <div class="pdf-footer">
-    This document is generated by AI for preliminary design purposes only. All calculations must be verified by a licensed structural engineer.
-  </div>
-</body>
-</html>`;
+${katexCss}
+body { font-family: 'Times New Roman', Georgia, serif; font-size: 10pt; line-height: 1.55; color: #111; margin: 0; padding: 12mm; max-width: 180mm; }
+.hdr { border-bottom: 2px solid #333; padding-bottom: 5px; margin-bottom: 10px; }
+.hdr h1 { font-size: 13pt; margin: 0 0 2px; }
+.hdr .meta { font-size: 8pt; color: #666; }
+h1 { font-size: 12pt; margin: 12px 0 5px; border-bottom: 1px solid #ddd; padding-bottom: 2px; }
+h2 { font-size: 11pt; margin: 10px 0 4px; }
+h3 { font-size: 10pt; margin: 8px 0 3px; }
+p { margin: 3px 0; }
+li { margin: 2px 0 2px 14px; }
+hr { border: none; border-top: 1px solid #ccc; margin: 8px 0; }
+table { border-collapse: collapse; width: 100%; margin: 6px 0; font-size: 9pt; }
+th, td { border: 1px solid #ccc; padding: 3px 6px; text-align: left; }
+th { background: #f0f0f0; font-weight: bold; }
+code { background: #f5f5f5; padding: 1px 3px; border-radius: 2px; font-size: 9pt; }
+.math-block { text-align: center; margin: 6px 0; }
+.katex { font-size: 1.0em; }
+.ftr { margin-top: 16px; padding-top: 5px; border-top: 1px solid #ccc; font-size: 7pt; color: #999; text-align: center; font-style: italic; }
+</style></head><body>
+<div class="hdr"><h1>CALCULATION NOTE: ${escapeHtml(title)}</h1><div class="meta">${dateStr} | Structural Engineer AI</div></div>
+${html}
+<div class="ftr">For preliminary design only. Verify with a licensed structural engineer.</div>
+</body></html>`;
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 /**
- * Generate a structural calculation note PDF with proper math rendering.
- * Uses KaTeX HTML → html2canvas → jsPDF for accurate formula display.
+ * Get minimal inline KaTeX CSS for PDF rendering.
+ * We only need the font-face rules and basic layout - pull from the bundled KaTeX.
  */
-export function generateCalcNotePdf(options: PdfOptions) {
-  const {
-    title = "Calculation Note",
-    content,
-  } = options;
-
-  const dateStr = new Date().toISOString().split("T")[0];
-  const htmlContent = markdownToHtml(content, title, dateStr);
-
-  // Create hidden iframe for rendering
-  const iframe = document.createElement("iframe");
-  iframe.style.cssText = "position:fixed;left:-9999px;top:0;width:794px;height:1123px;border:none;";
-  document.body.appendChild(iframe);
-
-  const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
-  if (!iframeDoc) {
-    document.body.removeChild(iframe);
-    throw new Error("Could not create rendering context");
+function getKatexInlineCss(): string {
+  // Extract KaTeX CSS from the loaded stylesheets
+  for (const sheet of document.styleSheets) {
+    try {
+      const href = sheet.href || "";
+      if (href.includes("katex") || href.includes("KaTeX")) {
+        const rules = Array.from(sheet.cssRules);
+        return rules.map(r => r.cssText).join("\n");
+      }
+    } catch { /* CORS-protected sheets */ }
   }
+  // Fallback: return minimal KaTeX styles
+  return `.katex { font: normal 1.05em KaTeX_Main, 'Times New Roman', serif; text-rendering: auto; }
+.katex .mfrac .frac-line { border-bottom-style: solid; border-bottom-width: 1px; }
+.katex .mfrac .frac-line::after { border-bottom-style: solid; border-bottom-width: 1px; }
+.katex .msupsub { text-align: left; }
+.katex .mord.mathnormal { font-family: KaTeX_Math; font-style: italic; }`;
+}
 
-  iframeDoc.open();
-  iframeDoc.write(htmlContent);
-  iframeDoc.close();
+/**
+ * Generate PDF calculation note with proper math rendering.
+ * Uses a hidden div + html2canvas for accurate KaTeX display.
+ */
+export async function generateCalcNotePdf(options: PdfOptions) {
+  const { title = "Calculation Note", content } = options;
+  const dateStr = new Date().toISOString().split("T")[0];
+  const htmlContent = toHtml(content, title, dateStr);
 
-  // Wait for KaTeX CSS and fonts to load, then generate PDF
-  setTimeout(() => {
+  // Create a hidden container for rendering
+  const container = document.createElement("div");
+  container.style.cssText = "position:fixed;left:-9999px;top:0;width:794px;background:white;z-index:-1;";
+  container.innerHTML = htmlContent;
+
+  // Copy KaTeX font-face rules from existing stylesheets
+  const styleEl = document.createElement("style");
+  for (const sheet of document.styleSheets) {
+    try {
+      for (const rule of sheet.cssRules) {
+        if (rule.cssText.includes("@font-face") && rule.cssText.includes("KaTeX")) {
+          styleEl.textContent += rule.cssText + "\n";
+        }
+      }
+    } catch { /* skip */ }
+  }
+  container.prepend(styleEl);
+  document.body.appendChild(container);
+
+  // Wait for fonts to load
+  try {
+    await document.fonts.ready;
+    await new Promise(resolve => setTimeout(resolve, 500));
+  } catch { /* proceed anyway */ }
+
+  try {
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-
-    doc.html(iframeDoc.body, {
-      callback: (pdf) => {
-        document.body.removeChild(iframe);
-        pdf.save(`calc-note-${dateStr}.pdf`);
-      },
-      x: 10,
-      y: 10,
-      width: 180,
-      windowWidth: 794,
-      html2canvas: {
-        scale: 0.25,
-        useCORS: true,
-        logging: false,
-      },
+    
+    await new Promise<void>((resolve, reject) => {
+      doc.html(container, {
+        callback: (pdf) => {
+          try {
+            pdf.save(`calc-note-${dateStr}.pdf`);
+            resolve();
+          } catch (e) {
+            reject(e);
+          }
+        },
+        x: 5,
+        y: 5,
+        width: 190,
+        windowWidth: 794,
+        html2canvas: {
+          scale: 0.25,
+          useCORS: true,
+          logging: false,
+          allowTaint: true,
+        },
+      });
     });
-  }, 1500); // Give time for KaTeX fonts to load in iframe
+  } finally {
+    document.body.removeChild(container);
+  }
 }

@@ -45,19 +45,21 @@ function MessageBubble({
     );
   }
 
-  const handleExportPdf = () => {
+  const handleExportPdf = async () => {
     try {
       const title = userQuery
         ? userQuery.length > 60
           ? `${userQuery.substring(0, 57)}...`
           : userQuery
         : "Calculation Note";
-      generateCalcNotePdf({
+      toast.info("Generating PDF...");
+      await generateCalcNotePdf({
         title,
         content,
       });
       toast.success("PDF downloaded");
-    } catch {
+    } catch (e) {
+      console.error("PDF generation error:", e);
       toast.error("Failed to generate PDF");
     }
   };
