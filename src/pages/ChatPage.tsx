@@ -10,6 +10,7 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
+import { MNDiagramChart, parseMNMarker } from "@/components/MNDiagramChart";
 import { useNavigate } from "react-router-dom";
 import { APP_NAME } from "@/lib/constants";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -24,6 +25,45 @@ function getSessionId(): string {
     localStorage.setItem(KEY, id);
   }
   return id;
+}
+
+/**
+ * Renders markdown content with inline M-N diagrams.
+ * Splits on [MN_DIAGRAM:...] markers and renders chart components.
+ */
+function RenderContentWithDiagrams({ content }: { content: string }) {
+  const mnRegex = /\[MN_DIAGRAM:[^\]]+\]/g;
+  const parts: Array<{ type: "text"; content: string } | { type: "diagram"; marker: string }> = [];
+
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = mnRegex.exec(content)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push({ type: "text", content: content.slice(lastIndex, match.index) });
+    }
+    parts.push({ type: "diagram", marker: match[0] });
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < content.length) {
+    parts.push({ type: "text", content: content.slice(lastIndex) });
+  }
+
+  if (parts.length === 1 && parts[0].type === "text") {
+    return <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{content}</ReactMarkdown>;
+  }
+
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (part.type === "text") {
+          return <ReactMarkdown key={i} remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{part.content}</ReactMarkdown>;
+        }
+        const parsed = parseMNMarker(part.marker);
+        if (!parsed) return null;
+        return <MNDiagramChart key={i} params={parsed.params} designPoint={parsed.designPoint} />;
+      })}
+    </>
+  );
 }
 
 function MessageBubble({
@@ -76,7 +116,7 @@ function MessageBubble({
             </div>
           ) : (
             <div className="prose prose-sm dark:prose-invert max-w-none prose-table:text-xs prose-th:px-2 prose-th:py-1 prose-td:px-2 prose-td:py-1 prose-pre:bg-background prose-pre:border overflow-x-auto">
-              <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{content}</ReactMarkdown>
+              <RenderContentWithDiagrams content={content} />
             </div>
           )}
         </div>

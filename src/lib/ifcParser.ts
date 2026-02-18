@@ -1,5 +1,25 @@
 // IFC Parser - loads web-ifc dynamically to avoid bundling ~3.5MB
 
+// ── Raw 3D geometry types (for Three.js viewer) ──────────────────────────
+
+export interface RawPlacedMesh {
+  /** Interleaved vertex data: x,y,z,nx,ny,nz per vertex */
+  vertexData: Float32Array;
+  /** Triangle index data */
+  indexData: Uint32Array;
+  /** RGBA color from IFC */
+  color: [number, number, number, number];
+  /** 4x4 column-major transform matrix */
+  transform: number[];
+}
+
+export interface RawMeshGroup {
+  expressId: number;
+  meshes: RawPlacedMesh[];
+}
+
+// ── Structural element types ─────────────────────────────────────────────
+
 export interface IfcStructuralElement {
   expressId: number;
   type: "beam" | "column" | "slab" | "wall";
@@ -26,6 +46,8 @@ export interface IfcParseResult {
     walls: number;
     total: number;
   };
+  /** Raw 3D mesh data for all products (for the viewer) */
+  meshGroups: RawMeshGroup[];
 }
 
 function getPropertyValue(prop: any): string {
@@ -209,9 +231,52 @@ export async function parseIfcFile(
     total: elements.length,
   };
 
+  // ── Extract 3D geometry from ALL products ──────────────────────────────
+  const meshGroups: RawMeshGroup[] = [];
+  try {
+    ifcApi.StreamAllMeshes(modelId, (flatMesh: any) => {
+      const expressId = flatMesh.expressID;
+      const placedGeometries = flatMesh.geometries;
+      const meshes: RawPlacedMesh[] = [];
+
+      for (let i = 0; i < placedGeometries.size(); i++) {
+        const pg = placedGeometries.get(i);
+        try {
+          const ifcGeometry = ifcApi.GetGeometry(modelId, pg.geometryExpressID);
+          const vertexData = ifcApi.GetVertexArray(
+            ifcGeometry.GetVertexData(),
+            ifcGeometry.GetVertexDataSize(),
+          );
+          const indexData = ifcApi.GetIndexArray(
+            ifcGeometry.GetIndexData(),
+            ifcGeometry.GetIndexDataSize(),
+          );
+
+          if (vertexData.length > 0 && indexData.length > 0) {
+            meshes.push({
+              vertexData: new Float32Array(vertexData),
+              indexData: new Uint32Array(indexData),
+              color: [pg.color.x, pg.color.y, pg.color.z, pg.color.w],
+              transform: Array.from(pg.flatTransformation),
+            });
+          }
+
+          // Free WASM-side geometry buffer
+          ifcGeometry.delete?.();
+        } catch { /* skip malformed geometry */ }
+      }
+
+      if (meshes.length > 0) {
+        meshGroups.push({ expressId, meshes });
+      }
+    });
+  } catch (e) {
+    console.warn("[IFC] Geometry extraction failed:", e);
+  }
+
   ifcApi.CloseModel(modelId);
 
-  return { filename, elements, summary };
+  return { filename, elements, summary, meshGroups };
 }
 
 /**

@@ -17,6 +17,7 @@ export default defineConfig({
         manualChunks: {
           katex: ["katex", "remark-math", "rehype-katex"],
           jspdf: ["jspdf"],
+          three: ["three"],
         },
       },
     },
