@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { HardHat, ArrowRight, Calculator, Building2, FileText, Columns3, Upload } from "lucide-react";
+import { HardHat, ArrowRight, Calculator, Building2, FileText, Columns3, Upload, Database } from "lucide-react";
 import { APP_NAME } from "@/lib/constants";
 
 const FEATURES = [
@@ -51,6 +51,14 @@ export function LandingPage() {
               onClick={() => navigate("/chat")}
             >
               Start designing <ArrowRight className="w-4 h-4" />
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="gap-2 text-base px-8 h-12 rounded-xl"
+              onClick={() => navigate("/profiles")}
+            >
+              <Database className="w-4 h-4" /> Steel Profiles
             </Button>
             <Button
               size="lg"

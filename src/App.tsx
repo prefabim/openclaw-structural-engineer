@@ -8,6 +8,7 @@ import { LandingPage, ChatPage } from "./pages";
 import { Loader2 } from "lucide-react";
 
 const IfcPage = lazy(() => import("./pages/IfcPage").then((m) => ({ default: m.IfcPage })));
+const ProfilesPage = lazy(() => import("./pages/ProfilesPage").then((m) => ({ default: m.ProfilesPage })));
 
 function LoadingFallback() {
   return (
@@ -32,6 +33,14 @@ function App() {
             element={
               <Suspense fallback={<LoadingFallback />}>
                 <IfcPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/profiles"
+            element={
+              <Suspense fallback={<LoadingFallback />}>
+                <ProfilesPage />
               </Suspense>
             }
           />

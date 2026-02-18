@@ -134,9 +134,20 @@ export function ChatPage() {
     const ifcPrompt = sessionStorage.getItem("ifc-prompt");
     if (ifcPrompt) {
       sessionStorage.removeItem("ifc-prompt");
-      // Small delay to let component mount
       const timer = setTimeout(() => {
         handleSend(ifcPrompt);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Pick up profile prompt if redirected from Steel Profiles page
+  useEffect(() => {
+    const profilePrompt = sessionStorage.getItem("profile-prompt");
+    if (profilePrompt) {
+      sessionStorage.removeItem("profile-prompt");
+      const timer = setTimeout(() => {
+        handleSend(profilePrompt);
       }, 500);
       return () => clearTimeout(timer);
     }
