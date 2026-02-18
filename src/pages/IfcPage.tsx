@@ -44,6 +44,7 @@ function ElementCard({
   const [expanded, setExpanded] = useState(false);
   const Icon = TYPE_ICONS[element.type];
   const colorClass = TYPE_COLORS[element.type];
+  const hasProperties = Object.keys(element.properties).length > 0;
 
   return (
     <div className="border rounded-xl p-4 bg-background hover:border-foreground/20 transition-colors">
@@ -83,20 +84,23 @@ function ElementCard({
           >
             <Calculator className="w-3.5 h-3.5" /> Calculate
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => setExpanded(!expanded)}
-          >
-            {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-          </Button>
+          {hasProperties && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              title="Show IFC properties"
+              onClick={() => setExpanded(!expanded)}
+            >
+              {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </Button>
+          )}
         </div>
       </div>
 
-      {expanded && Object.keys(element.properties).length > 0 && (
+      {expanded && hasProperties && (
         <div className="mt-3 pt-3 border-t">
-          <p className="text-xs font-medium text-muted-foreground mb-2">Properties</p>
+          <p className="text-xs font-medium text-muted-foreground mb-2">IFC Properties</p>
           <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
             {Object.entries(element.properties).map(([key, val]) => (
               <div key={key} className="flex justify-between gap-2">
