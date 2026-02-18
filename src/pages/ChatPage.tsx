@@ -52,15 +52,13 @@ function MessageBubble({
           ? `${userQuery.substring(0, 57)}...`
           : userQuery
         : "Calculation Note";
-      toast.info("Generating PDF...");
       await generateCalcNotePdf({
         title,
         content,
       });
-      toast.success("PDF downloaded");
     } catch (e) {
       console.error("PDF generation error:", e);
-      toast.error("Failed to generate PDF");
+      toast.error(e instanceof Error ? e.message : "Failed to generate PDF");
     }
   };
 
@@ -77,7 +75,7 @@ function MessageBubble({
               <span>Calculating...</span>
             </div>
           ) : (
-            <div className="prose prose-sm dark:prose-invert max-w-none prose-table:text-xs prose-th:px-2 prose-th:py-1 prose-td:px-2 prose-td:py-1 prose-pre:bg-background prose-pre:border">
+            <div className="prose prose-sm dark:prose-invert max-w-none prose-table:text-xs prose-th:px-2 prose-th:py-1 prose-td:px-2 prose-td:py-1 prose-pre:bg-background prose-pre:border overflow-x-auto">
               <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{content}</ReactMarkdown>
             </div>
           )}
@@ -240,7 +238,7 @@ export function ChatPage() {
       )}
 
       {/* Main chat area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
         {/* Chat header */}
         <div className="h-14 border-b flex items-center gap-3 px-4">
           {(!showSidebar || isMobile) && (
@@ -272,7 +270,7 @@ export function ChatPage() {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto min-h-0">
           {!hasMessages ? (
             <div className="flex flex-col items-center justify-center h-full px-4 py-12">
               <div className="w-16 h-16 rounded-2xl bg-chart-1/10 flex items-center justify-center mb-6">
